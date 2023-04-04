@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" href="css/estilo.css">
+    <meta charset="UTF-8">
+    
+    <title>Procesamiento de Audio</title>
+</head>
+<body>
+    <h1>Procesamiento de Audio en Tiempo Real</h1>
+    <div>
+        <label for="audioFileInput">Seleccionar archivo de audio:</label>
+        <input type="file" id="fileInput">
+    </div>
+    <div>
+        <label for="gainControl">Control de Ganancia:</label>
+        <input type="range" id="gainControl" min="0" max="1" step="0.01" value="0.5">
+    </div>
+    <div>
+        <button id="playButton">Reproducir</button>
+        <button id="stopButton">Detener</button>
+    </div>
+    <canvas id="waveformCanvas" width="800" height="100"></canvas>
+    <canvas id="spectrumCanvas" width="800" height="200"></canvas>
+    <script src="js/audioController.js"></script>
+</body>
+</html>

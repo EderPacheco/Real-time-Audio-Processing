@@ -1,0 +1,154 @@
+const fileInput = document.getElementById('fileInput');
+const gainControl = document.getElementById('gainControl');
+const playButton = document.getElementById('playButton');
+const stopButton = document.getElementById('stopButton');
+const waveformCanvas = document.getElementById('waveformCanvas');
+const spectrumCanvas = document.getElementById('spectrumCanvas');
+
+let audioBuffer = null;
+let audioSource = null;
+let gainNode = null;
+
+// Crear un contexto de audio
+var audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+
+var analyzer = audioContext.createAnalyser();
+
+let isPlaying = false;
+
+
+playButton.addEventListener('click', () => {
+    if (audioBuffer) {
+      audioSource = audioContext.createBufferSource();
+      audioSource.buffer = audioBuffer;
+  
+      gainNode = audioContext.createGain();
+      gainNode.gain.value = gainControl.value;
+  
+      audioSource.connect(gainNode);
+      gainNode.connect(analyzer);
+      analyzer.connect(audioContext.destination);
+  
+      audioSource.start(0);
+  
+      isPlaying = true;
+      audioContext.resume().then(() => {
+        console.log('Contexto de audio iniciado');
+      });
+    }
+  });
+  
+playButton.addEventListener('click', function() {
+  // Iniciar el contexto de audio después de la interacción del usuario
+  audioContext.resume().then(() => {
+    console.log('Contexto de audio iniciado');
+    
+  });
+});
+
+fileInput.addEventListener('change', function() {
+    const file = this.files[0];
+    const reader = new FileReader();
+    reader.onload = function() {
+        const arrayBuffer = this.result;
+        audioContext.decodeAudioData(arrayBuffer, function(buffer) {
+            audioBuffer = buffer;
+            visualizeAudio();
+        });
+    };
+    reader.readAsArrayBuffer(file);
+});
+
+gainControl.addEventListener('input', function() {
+    if (gainNode) {
+        gainNode.gain.value = this.value;
+       
+    }
+});
+
+
+stopButton.addEventListener('click', function() {
+    if (audioSource) {
+        audioSource.stop();
+        audioSource = null;
+    }
+});
+function visualizeAudio() {
+    const startTime = audioContext.currentTime;
+    const waveformContext = waveformCanvas.getContext('2d');
+    const spectrumContext = spectrumCanvas.getContext('2d');
+    const width = waveformCanvas.width;
+    const height = waveformCanvas.height;
+    const data = audioBuffer.getChannelData(0);
+    const bufferLength = data.length;
+    const sampleRate = audioBuffer.sampleRate;
+    const frequencyData = new Float32Array(analyzer.frequencyBinCount);
+  
+    const drawWaveform = function(currentTime) {
+        waveformContext.clearRect(0, 0, width, height);
+        waveformContext.fillStyle = 'rgba(128, 128, 128, 0.5)';
+        waveformContext.fillRect(0, 0, width * (currentTime / audioBuffer.duration), height);
+      
+        waveformContext.beginPath();
+        waveformContext.moveTo(0, height / 2);
+       
+        for (let i = 0; i < bufferLength; i++) {
+          const x = (i / bufferLength) * width;
+          const y = data[i] * height / 4 + height / 2;
+          waveformContext.lineTo(x, y);
+        }
+      
+        waveformContext.strokeStyle = 'red';
+        waveformContext.stroke();
+      };
+  
+    const drawSpectrum = function() {
+        const width = spectrumCanvas.width;
+        const height = spectrumCanvas.height;
+        const barWidth = 2;
+        const barSpacing = 0;
+        const numBars = Math.floor(width / (barWidth + barSpacing));
+        
+        analyzer.getFloatFrequencyData(frequencyData);
+        
+        spectrumContext.clearRect(0, 0, width, height);
+        const gradient = spectrumContext.createLinearGradient(0, 0, 0, spectrumCanvas.height);
+        gradient.addColorStop(0, '#ff00dd');
+        gradient.addColorStop(0.5, '#000dff');
+        gradient.addColorStop(1, '#00ffff');
+
+        spectrumContext.fillStyle = gradient;
+        
+        for (let i = 0; i < numBars; i++) {
+          const x = i * (barWidth + barSpacing);
+          const y = ((frequencyData[i] + 140) * height ) / 140;
+          const barHeight = height  - y;
+          spectrumContext.fillRect(x, height * 0. + y, barWidth, barHeight);
+        }
+      };
+  
+    function renderFrame() {
+        const currentTime = audioContext.currentTime - startTime;
+        drawWaveform(currentTime);
+        // Solo actualizar la visualización del espectro si la reproducción de audio ha comenzado
+        if (isPlaying) {
+            analyzer.getFloatFrequencyData(frequencyData);
+            drawSpectrum();
+        }
+        requestAnimationFrame(renderFrame);
+    }
+     
+  
+    audioSource = audioContext.createBufferSource();
+    audioSource.buffer = audioBuffer;
+    gainNode = audioContext.createGain();
+    gainNode.gain.value = gainControl.value;
+    audioSource.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    analyzer.connect(gainNode);
+  
+    
+  
+    renderFrame();
+  } 
